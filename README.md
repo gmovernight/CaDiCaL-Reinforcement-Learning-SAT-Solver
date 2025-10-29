@@ -115,8 +115,8 @@ python scripts/make_tables.py           --in        results/f50-218/test-baselin
 _All methods solve 100% of instances across all three families. On these easy/medium benchmarks, baseline CaDiCaL heuristics are faster in wall‑clock; A2C serves as a proof‑of‑concept of a clean, reproducible learning pipeline._
 
 ### f50‑218
-![Bars](results/f50-218/test-bars.png)
-![Cactus](results/f50-218/test-cactus.png)
+![Bars](figures/f50-218/test-bars.png)
+![Cactus](figures/f50-218/test-cactus.png)
 
 | algo | n | solved | solved % | median (s) | PAR-2 (s) |
 |---|---:|---:|---:|---:|---:|
@@ -127,8 +127,8 @@ _All methods solve 100% of instances across all three families. On these easy/me
 
 
 ### f100‑430
-![Bars](results/f100-430/test-bars.png)
-![Cactus](results/f100-430/test-cactus.png)
+![Bars](figures/f100-430/test-bars.png)
+![Cactus](figures/f100-430/test-cactus.png)
 
 | algo | n | solved | solved % | median (s) | PAR-2 (s) |
 |---|---:|---:|---:|---:|---:|
@@ -139,8 +139,8 @@ _All methods solve 100% of instances across all three families. On these easy/me
 
 
 ### flat50‑115
-![Bars](results/flat50-115/test-bars.png)
-![Cactus](results/flat50-115/test-cactus.png)
+![Bars](figures/flat50-115/test-bars.png)
+![Cactus](figures/flat50-115/test-cactus.png)
 
 | algo | n | solved | solved % | median (s) | PAR-2 (s) |
 |---|---:|---:|---:|---:|---:|
