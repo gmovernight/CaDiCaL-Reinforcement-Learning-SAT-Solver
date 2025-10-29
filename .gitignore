@@ -1,0 +1,69 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyi
+*.pyz
+*.egg-info/
+.python-version
+.mypy_cache/
+.pytype/
+.pytest_cache/
+.coverage*
+.cache/
+.ipynb_checkpoints/
+
+# ---- Env files / secrets ----
+.env
+.env.*
+!.env.example
+# common virtualenvs
+.venv/
+venv/
+
+# NOTE: your repo contains a real Python package named 'env/'
+# Do NOT ignore 'env/' here.
+
+# ---- C/C++ build artifacts (CaDiCaL, bridge) ----
+**/build/
+**/CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.ninja
+.ninja_deps
+.ninja_log
+compile_commands.json
+
+# Objects / libraries / binaries
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.dylib
+*.lib
+*.exp
+*.pdb
+*.exe
+
+# ---- Logs & misc runtime outputs ----
+*.log
+logs/
+archive/
+
+# Evaluation artifacts (generated)
+results/**/*.jsonl
+results/**/*.csv
+results/**/*.png
+
+# Checkpoints
+*.pt
+
+# ---- IDE / OS cruft ----
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db

@@ -1,0 +1,76 @@
+Yes — the Implementation section should explain what you built and how it works, not dump code. Aim for clear responsibilities, interfaces, and key decisions, with concise file pointers. Use this structure.
+
+Architecture
+
+Explain the system diagram: solver → bridge → env → policy → action → solver.
+Define roles: solver hooks, bridge API, env shaping, policy/value, trainer, scripts.
+
+
+Solver Instrumentation
+
+What you added to CaDiCaL: decision override, K‑candidate snapshot, step/window counters.
+Contract of the hook: runs to next decision, returns global stats + top‑K; accepts (index, M) to force next decisions.
+Pointers: cadical/src/internal.hpp, cadical/src/internal.cpp, cadical/src/decide.cpp.
+
+
+Bridge (C++/pybind11)
+
+Python API surface and types:
+load_dimacs(path), solve_until_next_hook(K, timeout_ms), apply_action(index, M), get_metrics().
+Metrics exposed (time_s, conflicts, decisions, props, props_per_dec, restarts, meanLBD_fast/slow).
+Pointer: bridge/pybridge.cpp.
+
+
+Environment (Python)
+
+Observation schema: global [11], cands [K,5] with [var, evsids, bumps_recent, age, rank]; mask logic.
+Step semantics: action index → window M decisions → next hook observation; episode limits.
+Reward shaping: Δ(window PPD) + Δ(mean LBD) + terminal bonus/penalty; why these choices.
+Pointer: env/sat_env.py, env/reward.py.
+
+
+Policy Model (Actor‑Critic)
+
+Network design: candidate encoder, global encoder, shared per‑candidate policy head, pooled value head; masking of invalids.
+Shapes, activations, initialization.
+Pointer: rl/models/a2c.py.
+
+
+Trainer (A2C)
+
+Loss: policy + value (Smooth L1) − entropy; advantage normalization; grad clip.
+Data collection: rollout T, GAE(λ=0.95) with bootstrap; batch assembly.
+Pointer: rl/train/a2c_trainer.py, rl/rollout/buffer.py, scripts/train_a2c.py.
+
+
+Training Pipeline
+
+Configs: cfg/a2c.yaml (K, M, rollout_T, lr, value/entropy coefs, grad_clip); how Stage C bumps rollout_T.
+Entropy annealing schedule (start→0).
+Warm‑start between stages with --init-ckpt (weights only); optional --resume for optimizer state (why/when).
+Logging: per‑update JSONL; summary fields (duration, updates/sec); training_curves.png.
+Pointers: scripts/train_a2c.py, scripts/save_training_summary.py, scripts/plot_training_curves.py.
+
+
+Evaluation Pipeline
+
+Baselines: cadical_default, evsids_top1, random_topK.
+A2C eval modes: greedy/sample; fixed budgets (timeout_s=60, K=16, M=8).
+Outputs: per‑instance JSONL; Solved%, PAR‑2, median times; bar plots and cactus plots; CSV tables.
+Pointers: scripts/run_baselines.py, scripts/eval_a2c.py, scripts/plot_eval_vs_baselines.py, scripts/plot_cactus.py, scripts/make_tables.py.
+
+
+Data & Splits
+
+Families and counts: f50‑218 (SAT+UNSAT), f100‑430 (SAT+UNSAT), flat50‑115 (SAT only).
+Train/val/test split hygiene; why flat is held out for generalization.
+Reproducibility
+
+Seeds, configs, checkpoints; exact build commands; device; PyTorch version.
+Selection policy: choose checkpoint by val solved% (PAR‑2 tiebreaker); report on test.
+
+
+Trade‑offs & Decisions
+
+M=8 vs larger M; rollout_T (32/64) choice; reward signals (why ΔPPD + ΔLBD); warm‑start weights‑only across curriculum.
+This level of detail is “code‑backed but readable”: you explain logic and interfaces, decisions and rationale, and give file pointers without overwhelming the reader with source.

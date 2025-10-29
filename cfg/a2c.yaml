@@ -1,0 +1,19 @@
+seed: 0
+device: cpu
+
+# Env / bridge
+K: 16
+M: 8
+timeout_ms: 5
+
+# Model
+hidden: 128
+cand_hidden: 64
+
+# A2C
+gamma: 0.99
+rollout_T: 32
+lr: 3e-4
+value_coef: 0.5
+entropy_coef: 0.02
+grad_clip: 0.7

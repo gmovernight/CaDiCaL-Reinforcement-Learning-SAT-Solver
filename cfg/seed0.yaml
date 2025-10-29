@@ -1,0 +1,13 @@
+K: 16
+M: 8
+cand_hidden: 64
+device: cpu
+entropy_coef: 0.02
+gamma: 0.99
+grad_clip: 0.7
+hidden: 128
+lr: 3e-4
+rollout_T: 32
+seed: 0
+timeout_ms: 5
+value_coef: 0.5

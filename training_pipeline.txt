@@ -1,0 +1,205 @@
+Got it — here’s a single, solid, end‑to‑end pipeline with no omissions. It builds, trains (curriculum), evaluates on both val and test, and produces bar plots, cactus plots, and CSV tables for all three families.
+
+Build
+
+Optional venv
+python3 -m venv .venv && . .venv/bin/activate && pip install -U pip && pip install -r requirements.txt
+CaDiCaL (static lib with PIC) + app
+cmake -S cadical -B cadical/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+cmake --build cadical/build -j
+Pybind bridge
+cmake -S bridge -B bridge/build -DCMAKE_BUILD_TYPE=Release -DPython3_EXECUTABLE="$(python3 -c 'import sys; print(sys.executable)')"
+cmake --build bridge/build -j
+Clean outputs (you said you have a backup)
+rm -rf logs/* results/*
+Sanity
+
+pytest -q
+
+
+
+Stage A — Train on SAT‑only uf (f50‑218)
+
+Seed 0 config
+python - <<'PY'
+import yaml
+cfg=yaml.safe_load(open('cfg/a2c.yaml'))
+cfg['seed']=0
+open('cfg/seed0.yaml','w').write(yaml.safe_dump(cfg))
+PY
+
+Train
+python scripts/train_a2c.py --cfg cfg/seed0.yaml --split train --family 'f50-218/uf' --max-updates 50000 --logdir logs/gae_lbd_stageA_seed0
+
+Summarize + curves
+python scripts/save_training_summary.py logs/gae_lbd_stageA_seed0/train.jsonl --out logs/gae_lbd_stageA_seed0/summary.json
+
+python scripts/plot_training_curves.py logs/gae_lbd_stageA_seed0/train.jsonl
+
+
+
+
+
+Stage B — Train on mixed SAT/UNSAT (f50‑218) (warm‑start from Stage A)
+
+Train
+python scripts/train_a2c.py --cfg cfg/seed0.yaml --split train --family f50-218 --max-updates 50000 --logdir logs/gae_lbd_stageB_seed0 --init-ckpt logs/gae_lbd_stageA_seed0/ckpt.pt
+
+Summarize + curves
+python scripts/save_training_summary.py logs/gae_lbd_stageB_seed0/train.jsonl --out logs/gae_lbd_stageB_seed0/summary.json
+python scripts/plot_training_curves.py logs/gae_lbd_stageB_seed0/train.jsonl
+
+
+
+Stage C — Train on mixed SAT/UNSAT (f100‑430, longer horizon) (warm‑start from Stage B)
+
+Seed 0 config with longer rollout
+
+python - <<'PY'
+import yaml
+cfg=yaml.safe_load(open('cfg/a2c.yaml'))
+cfg['seed']=0
+cfg['rollout_T']=64
+open('cfg/seed0_t64.yaml','w').write(yaml.safe_dump(cfg))
+PY
+
+
+Train
+
+python scripts/train_a2c.py --cfg cfg/seed0_t64.yaml --split train --family f100-430 --max-updates 50000 --logdir logs/gae_lbd_stageC_seed0 --init-ckpt logs/gae_lbd_stageB_seed0/ckpt.pt
+
+Summarize + curves
+
+python scripts/save_training_summary.py logs/gae_lbd_stageC_seed0/train.jsonl --out logs/gae_lbd_stageC_seed0/summary.json
+
+python scripts/plot_training_curves.py logs/gae_lbd_stageC_seed0/train.jsonl
+
+
+
+
+Baselines (val, 60s, K=16, M=8)
+
+f50‑218
+python scripts/run_baselines.py --split val --family f50-218 --timeout_s 60 --K 16 --M 8 --out results/f50-218/val-baselines-60s.gae_lbd.jsonl
+
+f100‑430
+python scripts/run_baselines.py --split val --family f100-430 --timeout_s 60 --K 16 --M 8 --out results/f100-430/val-baselines-60s.gae_lbd.jsonl
+
+flat50‑115
+python scripts/run_baselines.py --split val --family flat50-115 --timeout_s 60 --K 16 --M 8 --out results/flat50-115/val-baselines-60s.gae_lbd.jsonl
+
+
+
+A2C Evaluation (val, 60s, K=16, M=8)
+
+f50‑218 (Stage B checkpoint)
+
+python scripts/eval_a2c.py --split val --family f50-218 --ckpt logs/gae_lbd_stageB_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode greedy --out results/f50-218/val-a2c-60s.greedy.gae_lbd.jsonl
+
+python scripts/eval_a2c.py --split val --family f50-218 --ckpt logs/gae_lbd_stageB_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode sample --out results/f50-218/val-a2c-60s.sample.gae_lbd.jsonl
+
+f100‑430 (Stage C checkpoint)
+python scripts/eval_a2c.py --split val --family f100-430 --ckpt logs/gae_lbd_stageC_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode greedy --out results/f100-430/val-a2c-60s.greedy.gae_lbd.jsonl
+
+python scripts/eval_a2c.py --split val --family f100-430 --ckpt logs/gae_lbd_stageC_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode sample --out results/f100-430/val-a2c-60s.sample.gae_lbd.jsonl
+
+flat50‑115 (generalization; Stage B checkpoint)
+python scripts/eval_a2c.py --split val --family flat50-115 --ckpt logs/gae_lbd_stageB_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode greedy --out results/flat50-115/val-a2c-60s.greedy.gae_lbd.jsonl
+
+python scripts/eval_a2c.py --split val --family flat50-115 --ckpt logs/gae_lbd_stageB_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode sample --out results/flat50-115/val-a2c-60s.sample.gae_lbd.jsonl
+
+
+
+Baselines (test)
+
+f50‑218
+python scripts/run_baselines.py --split test --family f50-218 --timeout_s 60 --K 16 --M 8 --out results/f50-218/test-baselines-60s.gae_lbd.jsonl
+f100‑430
+python scripts/run_baselines.py --split test --family f100-430 --timeout_s 60 --K 16 --M 8 --out results/f100-430/test-baselines-60s.gae_lbd.jsonl
+flat50‑115
+python scripts/run_baselines.py --split test --family flat50-115 --timeout_s 60 --K 16 --M 8 --out results/flat50-115/test-baselines-60s.gae_lbd.jsonl
+
+
+
+A2C Evaluation (test)
+
+f50‑218 (Stage B checkpoint)
+python scripts/eval_a2c.py --split test --family f50-218 --ckpt logs/gae_lbd_stageB_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode greedy --out results/f50-218/test-a2c-60s.greedy.gae_lbd.jsonl
+
+
+python scripts/eval_a2c.py --split test --family f50-218 --ckpt logs/gae_lbd_stageB_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode sample --out results/f50-218/test-a2c-60s.sample.gae_lbd.jsonl
+
+f100‑430 (Stage C checkpoint)
+python scripts/eval_a2c.py --split test --family f100-430 --ckpt logs/gae_lbd_stageC_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode greedy --out results/f100-430/test-a2c-60s.greedy.gae_lbd.jsonl
+
+
+python scripts/eval_a2c.py --split test --family f100-430 --ckpt logs/gae_lbd_stageC_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode sample --out results/f100-430/test-a2c-60s.sample.gae_lbd.jsonl
+
+flat50‑115 (Stage B checkpoint)
+python scripts/eval_a2c.py --split test --family flat50-115 --ckpt logs/gae_lbd_stageB_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode greedy --out results/flat50-115/test-a2c-60s.greedy.gae_lbd.jsonl
+
+python scripts/eval_a2c.py --split test --family flat50-115 --ckpt logs/gae_lbd_stageB_seed0/ckpt.pt --timeout_s 60 --K 16 --M 8 --mode sample --out results/flat50-115/test-a2c-60s.sample.gae_lbd.jsonl
+
+
+
+Comparison Bars (Solved + PAR‑2)
+
+f50‑218
+python scripts/plot_eval_vs_baselines.py --baselines results/f50-218/val-baselines-60s.gae_lbd.jsonl --eval results/f50-218/val-a2c-60s.greedy.gae_lbd.jsonl --out results/f50-218/val-bars.png --title "f50-218 (60s)"
+
+python scripts/plot_eval_vs_baselines.py --baselines results/f50-218/test-baselines-60s.gae_lbd.jsonl --eval results/f50-218/test-a2c-60s.greedy.gae_lbd.jsonl --out results/f50-218/test-bars.png --title "f50-218 TEST (60s)"
+
+f100‑430
+python scripts/plot_eval_vs_baselines.py --baselines results/f100-430/val-baselines-60s.gae_lbd.jsonl --eval results/f100-430/val-a2c-60s.greedy.gae_lbd.jsonl --out results/f100-430/val-bars.png --title "f100-430 (60s)"
+
+python scripts/plot_eval_vs_baselines.py --baselines results/f100-430/test-baselines-60s.gae_lbd.jsonl --eval results/f100-430/test-a2c-60s.greedy.gae_lbd.jsonl --out results/f100-430/test-bars.png --title "f100-430 TEST (60s)"
+
+flat50‑115
+python scripts/plot_eval_vs_baselines.py --baselines results/flat50-115/val-baselines-60s.gae_lbd.jsonl --eval results/flat50-115/val-a2c-60s.greedy.gae_lbd.jsonl --out results/flat50-115/val-bars.png --title "flat50-115 (60s)"
+
+python scripts/plot_eval_vs_baselines.py --baselines results/flat50-115/test-baselines-60s.gae_lbd.jsonl --eval results/flat50-115/test-a2c-60s.greedy.gae_lbd.jsonl --out results/flat50-115/test-bars.png --title "flat50-115 TEST (60s)"
+
+
+
+Cactus Plots (cumulative solved)
+
+f50‑218
+python scripts/plot_cactus.py --in results/f50-218/val-baselines-60s.gae_lbd.jsonl results/f50-218/val-a2c-60s.greedy.gae_lbd.jsonl results/f50-218/val-a2c-60s.sample.gae_lbd.jsonl --out results/f50-218/val-cactus.png --title "f50-218 (60s) cactus" --policy clip
+
+python scripts/plot_cactus.py --in results/f50-218/test-baselines-60s.gae_lbd.jsonl results/f50-218/test-a2c-60s.greedy.gae_lbd.jsonl --out results/f50-218/test-cactus.png --title "f50-218 TEST (60s) cactus" --policy clip
+
+f100‑430
+python scripts/plot_cactus.py --in results/f100-430/val-baselines-60s.gae_lbd.jsonl results/f100-430/val-a2c-60s.greedy.gae_lbd.jsonl results/f100-430/val-a2c-60s.sample.gae_lbd.jsonl --out results/f100-430/val-cactus.png --title "f100-430 (60s) cactus" --policy clip
+
+python scripts/plot_cactus.py --in results/f100-430/test-baselines-60s.gae_lbd.jsonl results/f100-430/test-a2c-60s.greedy.gae_lbd.jsonl results/f100-430/test-a2c-60s.sample.gae_lbd.jsonl --out results/f100-430/test-cactus.png --title "f100-430 TEST (60s) cactus" --policy clip
+
+flat50‑115
+python scripts/plot_cactus.py --in results/flat50-115/val-baselines-60s.gae_lbd.jsonl results/flat50-115/val-a2c-60s.greedy.gae_lbd.jsonl results/flat50-115/val-a2c-60s.sample.gae_lbd.jsonl --out results/flat50-115/val-cactus.png --title "flat50-115 (60s) cactus" --policy clip
+
+python scripts/plot_cactus.py --in results/flat50-115/test-baselines-60s.gae_lbd.jsonl results/flat50-115/test-a2c-60s.greedy.gae_lbd.jsonl results/flat50-115/test-a2c-60s.sample.gae_lbd.jsonl --out results/flat50-115/test-cactus.png --title "flat50-115 TEST (60s) cactus" --policy clip
+
+
+
+Tables (CSV + console)
+
+f50‑218
+python scripts/make_tables.py --in results/f50-218/val-baselines-60s.gae_lbd.jsonl results/f50-218/val-a2c-60s.greedy.gae_lbd.jsonl results/f50-218/val-a2c-60s.sample.gae_lbd.jsonl --out results/f50-218/val-table.csv
+
+python scripts/make_tables.py --in results/f50-218/test-baselines-60s.gae_lbd.jsonl results/f50-218/test-a2c-60s.greedy.gae_lbd.jsonl results/f50-218/test-a2c-60s.sample.gae_lbd.jsonl --out results/f50-218/test-table.csv
+
+f100‑430
+python scripts/make_tables.py --in results/f100-430/val-baselines-60s.gae_lbd.jsonl results/f100-430/val-a2c-60s.greedy.gae_lbd.jsonl results/f100-430/val-a2c-60s.sample.gae_lbd.jsonl --out results/f100-430/val-table.csv
+
+python scripts/make_tables.py --in results/f100-430/test-baselines-60s.gae_lbd.jsonl results/f100-430/test-a2c-60s.greedy.gae_lbd.jsonl results/f100-430/test-a2c-60s.sample.gae_lbd.jsonl --out results/f100-430/test-table.csv
+
+flat50‑115
+python scripts/make_tables.py --in results/flat50-115/val-baselines-60s.gae_lbd.jsonl results/flat50-115/val-a2c-60s.greedy.gae_lbd.jsonl results/flat50-115/val-a2c-60s.sample.gae_lbd.jsonl --out results/flat50-115/val-table.csv
+
+python scripts/make_tables.py --in results/flat50-115/test-baselines-60s.gae_lbd.jsonl results/flat50-115/test-a2c-60s.greedy.gae_lbd.jsonl results/flat50-115/test-a2c-60s.sample.gae_lbd.jsonl --out results/flat50-115/test-table.csv
+
+
+You’ll end with:
+
+Training: train.jsonls, cfg.yaml copies, ckpt.pt, summary.json, training_curves.png in each logs/gae_lbd_stageX_seed0.
+Evaluation: per‑family JSONLs for baselines and A2C (val and test), bar plots (val-bars.png, test-bars.png), cactus plots (val-cactus.png, test-cactus.png), and CSV tables (val-table.csv, test-table.csv) under results/<family>/.
+This is the complete, robust pipeline for your report. If you want me to script these into a single bash file, I can generate it too.

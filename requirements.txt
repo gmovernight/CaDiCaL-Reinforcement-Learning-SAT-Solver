@@ -1,0 +1,20 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.8.0+cpu
+
+# Core
+numpy
+msgpack
+zstandard
+pyyaml
+tqdm
+pandas
+tensorboard
+matplotlib
+
+# Bridge build deps (pybind11 via pip; cmake/ninja via apt)
+pybind11
+
+# Dev / test
+pytest
+black
+ruff
