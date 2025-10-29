@@ -1,4 +1,4 @@
-# CaDiCaL RL — Learning Branching Policies for SAT
+# CaDiCaL RL — Learning Branching Policies for SAT (Boolean Satisfiability)
 
 _Reinforcement‑learning (RL) variable selection controller for the CaDiCaL SAT solver._  
 We instrument CaDiCaL with a **minimal, high‑throughput control surface**, bridge it to Python via **pybind11**, and train an **A2C** policy that selects the next decision variable from a **top‑K** EVSIDS candidate menu. The repo includes the instrumented solver, bridge, environment, model, training loop, baselines, and **fully reproducible** evaluation scripts that produce **bar** and **cactus** plots + CSV tables for three SAT families.
