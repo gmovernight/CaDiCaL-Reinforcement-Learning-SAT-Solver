@@ -234,6 +234,8 @@ auto metrics = solver.get_metrics(); // time_s, conflicts, decisions, props, mea
 - [CaDiCaL](https://github.com/arminbiere/cadical) SAT solver by Armin Biere.
 - PyTorch and the open‑source RL community for tooling and references.
 
+---
+
 ## 📜 License
 
 This repository and its contents were developed as part of the **COS700 Honours Research Project** at the **University of Pretoria**, South Africa.
